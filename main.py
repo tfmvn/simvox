@@ -26,3 +26,6 @@ async def setup_hook():
 
 if __name__ == "__main__":
     bot.run(config.TOKEN)
+
+
+# /mnt/data/simvox/main.py
