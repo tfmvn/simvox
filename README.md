@@ -26,8 +26,10 @@ This is an early alpha — expect bugs and missing features.
 - `!resume` — resume a paused track
 - `!skip` — skip the current track and play the next one in the queue
 - `!queue` — show what's queued up
+- `!remove <index>` — remove a specific song from the queue
+- `!clear` — clear the queue (the currently playing track keeps playing)
 - `!stop` — stop playback and clear the queue
 
 ## Version
 
-v0.1.0-alpha.3
+v0.1.0-alpha.4

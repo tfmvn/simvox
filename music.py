@@ -124,6 +124,32 @@ class Music(commands.Cog):
         await ctx.send("**Up next:**\n" + "\n".join(lines))
 
     @commands.command()
+    async def remove(self, ctx: commands.Context, index: int):
+        queue = self.get_queue(ctx.guild.id)
+
+        if not queue:
+            await ctx.send("The queue is empty.")
+            return
+
+        if index < 1 or index > len(queue):
+            await ctx.send(f"Invalid index. Use a number between 1 and {len(queue)} (see `!queue`).")
+            return
+
+        track = queue.pop(index - 1)
+        await ctx.send(f"Removed: {track['title']}")
+
+    @commands.command()
+    async def clear(self, ctx: commands.Context):
+        queue = self.get_queue(ctx.guild.id)
+
+        if not queue:
+            await ctx.send("The queue is already empty.")
+            return
+
+        queue.clear()
+        await ctx.send("Cleared the queue. The current track keeps playing.")
+
+    @commands.command()
     async def stop(self, ctx: commands.Context):
         self.get_queue(ctx.guild.id).clear()
         if ctx.voice_client and (ctx.voice_client.is_playing() or ctx.voice_client.is_paused()):
