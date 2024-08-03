@@ -42,7 +42,7 @@ class Music(commands.Cog):
             await ctx.send("I'm not in a voice channel.")
 
     @commands.command()
-    async def play(self, ctx: commands.Context, url: str):
+    async def play(self, ctx: commands.Context, *, query: str):
         if not ctx.voice_client:
             if not ctx.author.voice:
                 await ctx.send("You're not in a voice channel.")
@@ -52,13 +52,13 @@ class Music(commands.Cog):
         vc = ctx.voice_client
 
         try:
-            _, title = extract_stream_url(url)
+            _, title = extract_stream_url(query)
         except Exception as e:
-            await ctx.send(f"Could not load that URL: {e}")
+            await ctx.send(f"Could not find anything for that: {e}")
             return
 
         queue = self.get_queue(ctx.guild.id)
-        queue.append({"url": url, "title": title})
+        queue.append({"url": query, "title": title})
 
         if vc.is_playing() or vc.is_paused():
             await ctx.send(f"Added to queue: {title}")

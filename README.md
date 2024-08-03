@@ -21,7 +21,7 @@ This is an early alpha — expect bugs and missing features.
 
 - `!join` — join your current voice channel
 - `!leave` — leave the voice channel
-- `!play <url>` — play a YouTube URL, or add it to the queue if something is already playing
+- `!play <url or search terms>` — play a YouTube URL, or search YouTube and play the first result (e.g. `!play never gonna give you up`); adds to the queue if something is already playing
 - `!pause` — pause the current track
 - `!resume` — resume a paused track
 - `!skip` — skip the current track and play the next one in the queue
@@ -32,4 +32,4 @@ This is an early alpha — expect bugs and missing features.
 
 ## Version
 
-v0.1.0-alpha.4
+v0.1.0-alpha.5
