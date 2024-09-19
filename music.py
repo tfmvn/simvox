@@ -15,9 +15,13 @@ class Music(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.queues = {}
+        self.volumes = {}
 
     def get_queue(self, guild_id: int) -> list:
         return self.queues.setdefault(guild_id, [])
+
+    def get_volume(self, guild_id: int) -> int:
+        return self.volumes.setdefault(guild_id, 100)
 
     @commands.command()
     async def join(self, ctx: commands.Context):
@@ -84,7 +88,10 @@ class Music(commands.Cog):
         def after_playing(error):
             asyncio.run_coroutine_threadsafe(self.play_next(ctx), self.bot.loop)
 
-        source = discord.FFmpegPCMAudio(stream_url, **FFMPEG_OPTIONS)
+        source = discord.PCMVolumeTransformer(
+            discord.FFmpegPCMAudio(stream_url, **FFMPEG_OPTIONS),
+            volume=self.get_volume(ctx.guild.id) / 100,
+        )
         vc.play(source, after=after_playing)
 
         await ctx.send(f"Now playing: {title}")
@@ -112,6 +119,23 @@ class Music(commands.Cog):
             await ctx.send("Resumed.")
         else:
             await ctx.send("Nothing is paused.")
+
+    @commands.command()
+    async def volume(self, ctx: commands.Context, level: int = None):
+        if level is None:
+            await ctx.send(f"Current volume: {self.get_volume(ctx.guild.id)}%")
+            return
+
+        if level < 0 or level > 200:
+            await ctx.send("Volume must be between 0 and 200.")
+            return
+
+        self.volumes[ctx.guild.id] = level
+
+        if ctx.voice_client and ctx.voice_client.source:
+            ctx.voice_client.source.volume = level / 100
+
+        await ctx.send(f"Volume set to {level}%.")
 
     @commands.command(name="queue")
     async def show_queue(self, ctx: commands.Context):

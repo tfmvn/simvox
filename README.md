@@ -24,6 +24,7 @@ This is an early alpha — expect bugs and missing features.
 - `!play <url or search terms>` — play a YouTube URL, or search YouTube and play the first result (e.g. `!play never gonna give you up`); adds to the queue if something is already playing
 - `!pause` — pause the current track
 - `!resume` — resume a paused track
+- `!volume` — show the current volume, or `!volume <0-200>` to set it (default 100%)
 - `!skip` — skip the current track and play the next one in the queue
 - `!queue` — show what's queued up
 - `!remove <index>` — remove a specific song from the queue
@@ -32,4 +33,4 @@ This is an early alpha — expect bugs and missing features.
 
 ## Version
 
-v0.1.0-alpha.5
+v0.1.0-alpha.6
