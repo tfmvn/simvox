@@ -31,6 +31,8 @@ This is an early alpha — expect bugs and missing features.
 - `!clear` — clear the queue (the currently playing track keeps playing)
 - `!stop` — stop playback and clear the queue
 
+Note: the bot automatically leaves (and clears its queue) if everyone else leaves its voice channel, or if it gets disconnected unexpectedly.
+
 ## Version
 
-v0.1.0-alpha.6
+v0.1.0-alpha.7

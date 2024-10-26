@@ -1,9 +1,12 @@
 import discord
 from discord.ext import commands
 import asyncio
+import logging
 import yt_dlp
 
 from utils.helpers import extract_stream_url
+
+log = logging.getLogger("simvox.music")
 
 FFMPEG_OPTIONS = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
@@ -23,6 +26,21 @@ class Music(commands.Cog):
     def get_volume(self, guild_id: int) -> int:
         return self.volumes.setdefault(guild_id, 100)
 
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        # The bot itself got disconnected (kicked, moved out, connection drop, etc.)
+        if member.id == self.bot.user.id and after.channel is None:
+            self.get_queue(member.guild.id).clear()
+            log.info(f"Bot left voice in {member.guild.name} — queue cleared.")
+            return
+
+        # Everyone else left the channel the bot is in — leave and clean up.
+        vc = member.guild.voice_client
+        if vc and vc.channel and len([m for m in vc.channel.members if not m.bot]) == 0:
+            await vc.disconnect()
+            self.get_queue(member.guild.id).clear()
+            log.info(f"Left {member.guild.name} — voice channel was empty.")
+
     @commands.command()
     async def join(self, ctx: commands.Context):
         if not ctx.author.voice:
@@ -41,6 +59,7 @@ class Music(commands.Cog):
     async def leave(self, ctx: commands.Context):
         if ctx.voice_client:
             await ctx.voice_client.disconnect()
+            self.get_queue(ctx.guild.id).clear()
             await ctx.send("Left the voice channel.")
         else:
             await ctx.send("I'm not in a voice channel.")
@@ -51,7 +70,12 @@ class Music(commands.Cog):
             if not ctx.author.voice:
                 await ctx.send("You're not in a voice channel.")
                 return
-            await ctx.author.voice.channel.connect()
+            try:
+                await ctx.author.voice.channel.connect()
+            except Exception as e:
+                log.error(f"Voice connect failed: {e}")
+                await ctx.send("Could not join your voice channel.")
+                return
 
         vc = ctx.voice_client
 
@@ -73,7 +97,7 @@ class Music(commands.Cog):
         vc = ctx.voice_client
         queue = self.get_queue(ctx.guild.id)
 
-        if not vc or not queue:
+        if not vc or not vc.is_connected() or not queue:
             return
 
         track = queue.pop(0)
@@ -81,18 +105,27 @@ class Music(commands.Cog):
         try:
             stream_url, title = extract_stream_url(track["url"])
         except Exception as e:
-            await ctx.send(f"Could not load {track['title']}: {e}")
+            log.warning(f"Extraction failed for '{track['title']}': {e}")
+            await ctx.send(f"Could not load {track['title']}, skipping.")
             await self.play_next(ctx)
             return
 
         def after_playing(error):
+            if error:
+                log.error(f"Playback error on '{title}': {error}")
             asyncio.run_coroutine_threadsafe(self.play_next(ctx), self.bot.loop)
 
-        source = discord.PCMVolumeTransformer(
-            discord.FFmpegPCMAudio(stream_url, **FFMPEG_OPTIONS),
-            volume=self.get_volume(ctx.guild.id) / 100,
-        )
-        vc.play(source, after=after_playing)
+        try:
+            source = discord.PCMVolumeTransformer(
+                discord.FFmpegPCMAudio(stream_url, **FFMPEG_OPTIONS),
+                volume=self.get_volume(ctx.guild.id) / 100,
+            )
+            vc.play(source, after=after_playing)
+        except Exception as e:
+            log.error(f"FFmpeg failed to start for '{title}': {e}")
+            await ctx.send(f"Playback failed for {title}, skipping.")
+            await self.play_next(ctx)
+            return
 
         await ctx.send(f"Now playing: {title}")
 
