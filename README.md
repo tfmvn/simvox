@@ -35,4 +35,4 @@ Note: the bot automatically leaves (and clears its queue) if everyone else leave
 
 ## Version
 
-v0.1.0-alpha.7
+v0.1.0-alpha.8
