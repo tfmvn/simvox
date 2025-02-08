@@ -27,6 +27,8 @@ This is an early alpha — expect bugs and missing features.
 - `!volume` — show the current volume, or `!volume <0-200>` to set it (default 100%)
 - `!skip` — skip the current track and play the next one in the queue
 - `!queue` — show what's queued up
+- `!shuffle` — randomly reorder the queue (the currently playing track is unaffected)
+- `!loop` — toggle looping the currently playing song on or off
 - `!remove <index>` — remove a specific song from the queue
 - `!clear` — clear the queue (the currently playing track keeps playing)
 - `!stop` — stop playback and clear the queue
@@ -35,4 +37,4 @@ Note: the bot automatically leaves (and clears its queue) if everyone else leave
 
 ## Version
 
-v0.1.0-alpha.8
+v0.1.0-alpha.9

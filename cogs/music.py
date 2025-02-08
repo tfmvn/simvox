@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 from utils.helpers import extract_stream_url
-from utils.queue import QueueManager
+from utils.queue import QueueManager, Track
 
 log = logging.getLogger("simvox.music")
 
@@ -19,6 +19,8 @@ class Music(commands.Cog):
         self.bot = bot
         self.queues = QueueManager()
         self.volumes: dict[int, int] = {}
+        self.loop_enabled: dict[int, bool] = {}
+        self.current_track: dict[int, Track] = {}
 
     def get_volume(self, guild_id: int) -> int:
         return self.volumes.setdefault(guild_id, 100)
@@ -28,6 +30,7 @@ class Music(commands.Cog):
         # The bot itself got disconnected (kicked, moved out, connection drop, etc.)
         if member.id == self.bot.user.id and after.channel is None:
             self.queues.clear(member.guild.id)
+            self.current_track.pop(member.guild.id, None)
             log.info(f"Bot left voice in {member.guild.name} — queue cleared.")
             return
 
@@ -36,6 +39,7 @@ class Music(commands.Cog):
         if vc and vc.channel and len([m for m in vc.channel.members if not m.bot]) == 0:
             await vc.disconnect()
             self.queues.clear(member.guild.id)
+            self.current_track.pop(member.guild.id, None)
             log.info(f"Left {member.guild.name} — voice channel was empty.")
 
     @commands.command()
@@ -57,6 +61,7 @@ class Music(commands.Cog):
         if ctx.voice_client:
             await ctx.voice_client.disconnect()
             self.queues.clear(ctx.guild.id)
+            self.current_track.pop(ctx.guild.id, None)
             await ctx.send("Left the voice channel.")
         else:
             await ctx.send("I'm not in a voice channel.")
@@ -91,19 +96,26 @@ class Music(commands.Cog):
 
     async def play_next(self, ctx: commands.Context) -> None:
         vc = ctx.voice_client
+        guild_id = ctx.guild.id
 
         if not vc or not vc.is_connected():
             return
 
-        track = self.queues.pop_next(ctx.guild.id)
-        if track is None:
-            return
+        if self.loop_enabled.get(guild_id) and guild_id in self.current_track:
+            track = self.current_track[guild_id]
+        else:
+            track = self.queues.pop_next(guild_id)
+            if track is None:
+                self.current_track.pop(guild_id, None)
+                return
+            self.current_track[guild_id] = track
 
         try:
             stream_url, title = extract_stream_url(track.url)
         except Exception as e:
             log.warning(f"Extraction failed for '{track.title}': {e}")
             await ctx.send(f"Could not load {track.title}, skipping.")
+            self.current_track.pop(guild_id, None)
             await self.play_next(ctx)
             return
 
@@ -115,12 +127,13 @@ class Music(commands.Cog):
         try:
             source = discord.PCMVolumeTransformer(
                 discord.FFmpegPCMAudio(stream_url, **FFMPEG_OPTIONS),
-                volume=self.get_volume(ctx.guild.id) / 100,
+                volume=self.get_volume(guild_id) / 100,
             )
             vc.play(source, after=after_playing)
         except Exception as e:
             log.error(f"FFmpeg failed to start for '{title}': {e}")
             await ctx.send(f"Playback failed for {title}, skipping.")
+            self.current_track.pop(guild_id, None)
             await self.play_next(ctx)
             return
 
@@ -133,6 +146,24 @@ class Music(commands.Cog):
             await ctx.send("Skipped.")
         else:
             await ctx.send("Nothing is playing.")
+
+    @commands.command()
+    async def loop(self, ctx: commands.Context) -> None:
+        guild_id = ctx.guild.id
+        enabled = not self.loop_enabled.get(guild_id, False)
+        self.loop_enabled[guild_id] = enabled
+        state = "enabled 🔁 — the current song will repeat" if enabled else "disabled"
+        await ctx.send(f"Looping {state}.")
+
+    @commands.command()
+    async def shuffle(self, ctx: commands.Context) -> None:
+        queue = self.queues.get(ctx.guild.id)
+        if not queue:
+            await ctx.send("The queue is empty — nothing to shuffle.")
+            return
+
+        self.queues.shuffle(ctx.guild.id)
+        await ctx.send("Shuffled the queue.")
 
     @commands.command()
     async def pause(self, ctx: commands.Context) -> None:
@@ -204,6 +235,8 @@ class Music(commands.Cog):
     @commands.command()
     async def stop(self, ctx: commands.Context) -> None:
         self.queues.clear(ctx.guild.id)
+        self.current_track.pop(ctx.guild.id, None)
+        self.loop_enabled[ctx.guild.id] = False
         if ctx.voice_client and (ctx.voice_client.is_playing() or ctx.voice_client.is_paused()):
             ctx.voice_client.stop()
             await ctx.send("Stopped playback and cleared the queue.")

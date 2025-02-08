@@ -3,6 +3,7 @@ utils/queue.py
 A simple per-guild queue of upcoming tracks, kept separate from the
 music cog so the command logic doesn't have to manage queue dicts itself.
 """
+import random
 from dataclasses import dataclass
 
 
@@ -36,6 +37,10 @@ class QueueManager:
         if index < 1 or index > len(queue):
             return None
         return queue.pop(index - 1)
+
+    def shuffle(self, guild_id: int) -> None:
+        """Randomly reorders the queue in place. Does not touch the current track."""
+        random.shuffle(self.get(guild_id))
 
     def clear(self, guild_id: int) -> None:
         self.get(guild_id).clear()
