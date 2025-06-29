@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+import asyncio
 import logging
 
 from core.player import PlayerManager
@@ -47,6 +48,7 @@ class Music(commands.Cog):
         else:
             await channel.connect()
 
+        log.info(f"Joined {channel} in guild {ctx.guild.id}.")
         await ctx.send(f"Joined {channel.name}.")
 
     @commands.command()
@@ -54,6 +56,7 @@ class Music(commands.Cog):
         if ctx.voice_client:
             await ctx.voice_client.disconnect()
             self.player.reset(ctx.guild.id)
+            log.info(f"Left voice in guild {ctx.guild.id}.")
             await ctx.send("Left the voice channel.")
         else:
             await ctx.send("I'm not in a voice channel.")
@@ -74,7 +77,7 @@ class Music(commands.Cog):
         vc = ctx.voice_client
 
         try:
-            _, title = extract_stream_url(query)
+            _, title = await asyncio.to_thread(extract_stream_url, query)
         except Exception as e:
             await ctx.send(f"Could not find anything for that: {e}")
             return
@@ -89,6 +92,7 @@ class Music(commands.Cog):
     @commands.command()
     async def skip(self, ctx: commands.Context) -> None:
         if _has_audio(ctx.voice_client):
+            log.info(f"Guild {ctx.guild.id}: track skipped by {ctx.author}.")
             ctx.voice_client.stop()
             await ctx.send("Skipped.")
         else:

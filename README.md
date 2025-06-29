@@ -37,4 +37,4 @@ Note: the bot automatically leaves (and clears its queue) if everyone else leave
 
 ## Version
 
-v0.1.0-alpha.10
+v0.1.0-alpha.11
