@@ -30,6 +30,10 @@ class PlayerManager:
         self._volumes: dict[int, int] = {}
         self._loop_enabled: dict[int, bool] = {}
         self._current: dict[int, Track] = {}
+        self._locks: dict[int, asyncio.Lock] = {}
+
+    def _lock_for(self, guild_id: int) -> asyncio.Lock:
+        return self._locks.setdefault(guild_id, asyncio.Lock())
 
     # ── Volume ───────────────────────────────────────────────────────────
 
@@ -50,9 +54,6 @@ class PlayerManager:
 
     # ── Current track / queueing ─────────────────────────────────────────
 
-    def now_playing(self, guild_id: int) -> Optional[Track]:
-        return self._current.get(guild_id)
-
     def enqueue(self, guild_id: int, url: str, title: str) -> None:
         self.queues.add(guild_id, url, title)
 
@@ -71,47 +72,65 @@ class PlayerManager:
         looping, otherwise pulls the next one off the queue. Tracks that
         fail to extract or play are skipped in a loop rather than via
         recursion, so a bad run of tracks can't blow the call stack.
+
+        Guarded by a per-guild lock so two overlapping calls (e.g. a
+        stray `after` callback firing around the same time as a fresh
+        `!play`) can't both try to start audio at once.
         """
-        while True:
+        async with self._lock_for(guild_id):
             if not voice_client or not voice_client.is_connected():
+                log.info(f"Guild {guild_id}: voice client not connected, aborting playback.")
                 return
 
-            if self._loop_enabled.get(guild_id) and guild_id in self._current:
-                track = self._current[guild_id]
-            else:
-                track = self.queues.pop_next(guild_id)
-                if track is None:
-                    self._current.pop(guild_id, None)
+            if voice_client.is_playing() or voice_client.is_paused():
+                # Something is already active — the existing `after` callback
+                # will chain into the next track when it's done. Starting a
+                # second one here would raise "already playing" and could
+                # skip a perfectly good track.
+                log.info(f"Guild {guild_id}: playback already active, ignoring duplicate start.")
+                return
+
+            while True:
+                if not voice_client.is_connected():
                     return
-                self._current[guild_id] = track
 
-            try:
-                stream_url, title = extract_stream_url(track.url)
-            except Exception as e:
-                log.warning(f"Extraction failed for '{track.title}': {e}")
-                await announce(f"Could not load {track.title}, skipping.")
-                self._current.pop(guild_id, None)
-                continue
+                if self._loop_enabled.get(guild_id) and guild_id in self._current:
+                    track = self._current[guild_id]
+                else:
+                    track = self.queues.pop_next(guild_id)
+                    if track is None:
+                        self._current.pop(guild_id, None)
+                        log.info(f"Guild {guild_id}: queue is empty, nothing more to play.")
+                        return
+                    self._current[guild_id] = track
 
-            def after_playing(error, guild_id=guild_id, voice_client=voice_client, announce=announce):
-                if error:
-                    log.error(f"Playback error in guild {guild_id}: {error}")
-                asyncio.run_coroutine_threadsafe(
-                    self.play_next(voice_client, guild_id, announce), self.bot.loop
-                )
+                try:
+                    stream_url, title = await asyncio.to_thread(extract_stream_url, track.url)
+                except Exception as e:
+                    log.warning(f"Extraction failed for '{track.title}' in guild {guild_id}: {e}")
+                    await announce(f"Could not load {track.title}, skipping.")
+                    self._current.pop(guild_id, None)
+                    continue
 
-            try:
-                source = discord.PCMVolumeTransformer(
-                    discord.FFmpegPCMAudio(stream_url, **FFMPEG_OPTIONS),
-                    volume=self.get_volume(guild_id) / 100,
-                )
-                voice_client.play(source, after=after_playing)
-            except Exception as e:
-                log.error(f"FFmpeg failed to start for '{title}': {e}")
-                await announce(f"Playback failed for {title}, skipping.")
-                self._current.pop(guild_id, None)
-                continue
+                def after_playing(error, guild_id=guild_id, voice_client=voice_client, announce=announce):
+                    if error:
+                        log.error(f"Playback error in guild {guild_id}: {error}")
+                    asyncio.run_coroutine_threadsafe(
+                        self.play_next(voice_client, guild_id, announce), self.bot.loop
+                    )
 
-            log.info(f"Guild {guild_id}: now playing '{title}'.")
-            await announce(f"Now playing: {title}")
-            return
+                try:
+                    source = discord.PCMVolumeTransformer(
+                        discord.FFmpegPCMAudio(stream_url, **FFMPEG_OPTIONS),
+                        volume=self.get_volume(guild_id) / 100,
+                    )
+                    voice_client.play(source, after=after_playing)
+                except Exception as e:
+                    log.error(f"FFmpeg failed to start for '{title}' in guild {guild_id}: {e}")
+                    await announce(f"Playback failed for {title}, skipping.")
+                    self._current.pop(guild_id, None)
+                    continue
+
+                log.info(f"Guild {guild_id}: now playing '{title}'.")
+                await announce(f"Now playing: {title}")
+                return

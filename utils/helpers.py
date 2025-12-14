@@ -1,3 +1,8 @@
+"""
+utils/helpers.py
+Thin wrapper around yt-dlp: resolves a URL or search query down to a
+direct, playable stream URL plus a display title.
+"""
 import yt_dlp
 
 YDL_OPTS = {
@@ -8,7 +13,7 @@ YDL_OPTS = {
 }
 
 
-def extract_stream_url(query: str):
+def extract_stream_url(query: str) -> tuple[str, str]:
     """
     Returns (stream_url, title) for a given YouTube URL, or for a search
     query (e.g. "never gonna give you up"), in which case the first

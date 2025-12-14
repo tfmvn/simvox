@@ -1,7 +1,8 @@
-import discord
-from discord.ext import commands
 import asyncio
 import logging
+
+import discord
+from discord.ext import commands
 
 from core.player import PlayerManager
 from utils.helpers import extract_stream_url
@@ -9,7 +10,7 @@ from utils.helpers import extract_stream_url
 log = logging.getLogger("simvox.music")
 
 
-def _has_audio(voice_client: discord.VoiceClient | None) -> bool:
+def _is_active(voice_client: discord.VoiceClient | None) -> bool:
     """True if a voice client is currently playing or paused."""
     return bool(voice_client) and (voice_client.is_playing() or voice_client.is_paused())
 
@@ -84,14 +85,14 @@ class Music(commands.Cog):
 
         self.player.enqueue(ctx.guild.id, query, title)
 
-        if _has_audio(vc):
+        if _is_active(vc):
             await ctx.send(f"Added to queue: {title}")
         else:
             await self.player.play_next(vc, ctx.guild.id, ctx.send)
 
     @commands.command()
     async def skip(self, ctx: commands.Context) -> None:
-        if _has_audio(ctx.voice_client):
+        if _is_active(ctx.voice_client):
             log.info(f"Guild {ctx.guild.id}: track skipped by {ctx.author}.")
             ctx.voice_client.stop()
             await ctx.send("Skipped.")
@@ -106,7 +107,7 @@ class Music(commands.Cog):
 
     @commands.command()
     async def shuffle(self, ctx: commands.Context) -> None:
-        queue = self.player.queues.get(ctx.guild.id)
+        queue = self.player.queues.get_queue(ctx.guild.id)
         if not queue:
             await ctx.send("The queue is empty — nothing to shuffle.")
             return
@@ -145,7 +146,7 @@ class Music(commands.Cog):
 
     @commands.command(name="queue")
     async def show_queue(self, ctx: commands.Context) -> None:
-        queue = self.player.queues.get(ctx.guild.id)
+        queue = self.player.queues.get_queue(ctx.guild.id)
         if not queue:
             await ctx.send("The queue is empty.")
             return
@@ -155,7 +156,7 @@ class Music(commands.Cog):
 
     @commands.command()
     async def remove(self, ctx: commands.Context, index: int) -> None:
-        queue = self.player.queues.get(ctx.guild.id)
+        queue = self.player.queues.get_queue(ctx.guild.id)
 
         if not queue:
             await ctx.send("The queue is empty.")
@@ -170,7 +171,7 @@ class Music(commands.Cog):
 
     @commands.command()
     async def clear(self, ctx: commands.Context) -> None:
-        if not self.player.queues.get(ctx.guild.id):
+        if not self.player.queues.get_queue(ctx.guild.id):
             await ctx.send("The queue is already empty.")
             return
 
@@ -180,7 +181,7 @@ class Music(commands.Cog):
     @commands.command()
     async def stop(self, ctx: commands.Context) -> None:
         self.player.reset(ctx.guild.id)
-        if _has_audio(ctx.voice_client):
+        if _is_active(ctx.voice_client):
             ctx.voice_client.stop()
             await ctx.send("Stopped playback and cleared the queue.")
         else:
