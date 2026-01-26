@@ -1,1 +1,0 @@
-"""Discord.py cogs — each file here is a set of related commands."""

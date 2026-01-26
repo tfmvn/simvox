@@ -1,0 +1,300 @@
+{
+  "id": "1NIlouPwHi81SPIfHf213T",
+  "name": "Soft and smooth english songs",
+  "description": "",
+  "owner": null,
+  "total_tracks": 32,
+  "tracks": [
+    {
+      "name": "Dandelions",
+      "artists": [
+        "Ruth B."
+      ],
+      "duration_ms": 233720,
+      "id": "2eAvDnpXP5W0cVtiI0PUxV",
+      "preview_url": null
+    },
+    {
+      "name": "Strawberries & Cigarettes",
+      "artists": [
+        "Troye Sivan"
+      ],
+      "duration_ms": 201538,
+      "id": "3afkJSKX0EAMsJXTZnDXXJ",
+      "preview_url": null
+    },
+    {
+      "name": "Perfect",
+      "artists": [
+        "Ed Sheeran"
+      ],
+      "duration_ms": 263400,
+      "id": "0tgVpDi06FyKpA1z0VMD4v",
+      "preview_url": null
+    },
+    {
+      "name": "In The Stars",
+      "artists": [
+        "Benson Boone"
+      ],
+      "duration_ms": 216410,
+      "id": "1ei3hzQmrgealgRKFxIcWn",
+      "preview_url": null
+    },
+    {
+      "name": "Princesses Don't Cry",
+      "artists": [
+        "CARYS"
+      ],
+      "duration_ms": 212106,
+      "id": "07squf0xpI7hHUwZ4hezKP",
+      "preview_url": null
+    },
+    {
+      "name": "Dancing With Your Ghost",
+      "artists": [
+        "Sasha Alex Sloan"
+      ],
+      "duration_ms": 197732,
+      "id": "1TQXIltqoZ5XXyfCbAeSQQ",
+      "preview_url": null
+    },
+    {
+      "name": "happier",
+      "artists": [
+        "Olivia Rodrigo"
+      ],
+      "duration_ms": 175933,
+      "id": "2tGvwE8GcFKwNdAXMnlbfl",
+      "preview_url": null
+    },
+    {
+      "name": "Wildest Dreams",
+      "artists": [
+        "Taylor Swift"
+      ],
+      "duration_ms": 220440,
+      "id": "3fVnlF4pGqWI9flVENcT28",
+      "preview_url": null
+    },
+    {
+      "name": "Arcade",
+      "artists": [
+        "Duncan Laurence"
+      ],
+      "duration_ms": 185146,
+      "id": "1J14CdDAvBTE1AJYUOwl6C",
+      "preview_url": null
+    },
+    {
+      "name": "Infinity",
+      "artists": [
+        "Jaymes Young"
+      ],
+      "duration_ms": 237720,
+      "id": "1SOClUWhOi8vHZYMz3GluK",
+      "preview_url": null
+    },
+    {
+      "name": "a thousand years",
+      "artists": [
+        "Christina Perri"
+      ],
+      "duration_ms": 285120,
+      "id": "6lanRgr6wXibZr8KgzXxBl",
+      "preview_url": null
+    },
+    {
+      "name": "traitor",
+      "artists": [
+        "Olivia Rodrigo"
+      ],
+      "duration_ms": 229226,
+      "id": "5CZ40GBx1sQ9agT82CLQCT",
+      "preview_url": null
+    },
+    {
+      "name": "Moral of the Story",
+      "artists": [
+        "Ashe"
+      ],
+      "duration_ms": 201016,
+      "id": "69HzZ3ti9DLwb0GdWCGYSo",
+      "preview_url": null
+    },
+    {
+      "name": "Heart Attack",
+      "artists": [
+        "Demi Lovato"
+      ],
+      "duration_ms": 210840,
+      "id": "1V6gIisPpYqgFeWbMLI0bA",
+      "preview_url": null
+    },
+    {
+      "name": "Talking to the Moon",
+      "artists": [
+        "Bruno Mars"
+      ],
+      "duration_ms": 217866,
+      "id": "161DnLWsx1i3u1JT05lzqU",
+      "preview_url": null
+    },
+    {
+      "name": "Runaway",
+      "artists": [
+        "AURORA"
+      ],
+      "duration_ms": 248826,
+      "id": "1v1oIWf2Xgh54kIWuKsDf6",
+      "preview_url": null
+    },
+    {
+      "name": "Hurts So Good",
+      "artists": [
+        "Astrid S"
+      ],
+      "duration_ms": 208728,
+      "id": "46u5B2WN4wryYLZuMAOmI4",
+      "preview_url": null
+    },
+    {
+      "name": "Paper Rings",
+      "artists": [
+        "Taylor Swift"
+      ],
+      "duration_ms": 222400,
+      "id": "4y5bvROuBDPr5fuwXbIBZR",
+      "preview_url": null
+    },
+    {
+      "name": "Angel Baby",
+      "artists": [
+        "Troye Sivan"
+      ],
+      "duration_ms": 220779,
+      "id": "2m6Ko3CY1qXNNja8AlugNc",
+      "preview_url": null
+    },
+    {
+      "name": "hate u love u",
+      "artists": [
+        "Olivia O'Brien"
+      ],
+      "duration_ms": 175466,
+      "id": "6ATgDc6e4sPn84hvJsAmPt",
+      "preview_url": null
+    },
+    {
+      "name": "I Like Me Better",
+      "artists": [
+        "LAUV"
+      ],
+      "duration_ms": 197436,
+      "id": "0EcQcdcbQeVJn9fknj44Be",
+      "preview_url": null
+    },
+    {
+      "name": "Love Me Like You Do",
+      "artists": [
+        "Ellie Goulding"
+      ],
+      "duration_ms": 253520,
+      "id": "4Wui4miiL1JR3QqWcbcKwD",
+      "preview_url": null
+    },
+    {
+      "name": "Alone, Pt. II",
+      "artists": [
+        "Alan Walker",
+        "Ava Max"
+      ],
+      "duration_ms": 179052,
+      "id": "28VbwtsYnj85UEODGpQRem",
+      "preview_url": null
+    },
+    {
+      "name": "I'm a Mess",
+      "artists": [
+        "Bebe Rexha"
+      ],
+      "duration_ms": 195519,
+      "id": "04ZTP5KsCypmtCmQg5tH9R",
+      "preview_url": null
+    },
+    {
+      "name": "Love Is Gone",
+      "artists": [
+        "SLANDER",
+        "Dylan Matthew"
+      ],
+      "duration_ms": 254136,
+      "id": "6HfZTdkheqDGQQwQGRV8et",
+      "preview_url": null
+    },
+    {
+      "name": "Someone You Loved",
+      "artists": [
+        "Lewis Capaldi"
+      ],
+      "duration_ms": 182160,
+      "id": "7qEHsqek33rTcFNT9PFqLf",
+      "preview_url": null
+    },
+    {
+      "name": "It's You",
+      "artists": [
+        "Ali Gatie"
+      ],
+      "duration_ms": 212606,
+      "id": "5DqdesEfbRyOlSS3Tf6c29",
+      "preview_url": null
+    },
+    {
+      "name": "Can We Kiss Forever?",
+      "artists": [
+        "Kina",
+        "Adriana Proenza"
+      ],
+      "duration_ms": 187931,
+      "id": "58wyJLv6yH1La9NIZPl3ne",
+      "preview_url": null
+    },
+    {
+      "name": "Ghost Town",
+      "artists": [
+        "Benson Boone"
+      ],
+      "duration_ms": 193733,
+      "id": "135Lf4Q0CzlMNfOxbEUsLH",
+      "preview_url": null
+    },
+    {
+      "name": "Pretty Girl",
+      "artists": [
+        "Maggie Lindemann"
+      ],
+      "duration_ms": 219428,
+      "id": "1ue7zm5TVVvmoQV8lK6K2H",
+      "preview_url": null
+    },
+    {
+      "name": "Happier",
+      "artists": [
+        "Ed Sheeran"
+      ],
+      "duration_ms": 207520,
+      "id": "2RttW7RAu5nOAfq6YFvApB",
+      "preview_url": null
+    },
+    {
+      "name": "Man Udhan Varyache",
+      "artists": [
+        "Shankar Mahadevan"
+      ],
+      "duration_ms": 279053,
+      "id": "52P5qoJPnEAfR1eUcpMjly",
+      "preview_url": null
+    }
+  ]
+}
