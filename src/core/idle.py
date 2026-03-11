@@ -44,33 +44,38 @@ class IdleTracker:
         except asyncio.CancelledError:
             return
 
-        from db import repository as repo
-        settings = await repo.get_guild_settings(manager.guild_id)
-        if settings["twentyfourseven"]:
-            log.info(f"Guild {manager.guild_id} idle but 24/7 is on — staying connected.")
-            return
-
-        vc = manager.voice_client
-        if not vc or not vc.is_connected():
-            return
-
-        # Double-check it's actually still idle (nothing started in the meantime)
-        if vc.is_playing() or vc.is_paused():
-            return
-
-        log.info(f"Guild {manager.guild_id} idle for {timeout}s — disconnecting.")
         try:
-            if manager.text_channel:
-                from utils.embeds import info_embed
-                await manager.text_channel.send(
-                    embed=info_embed("👋  Leaving", f"No activity for {timeout//60} minutes — disconnecting to free up resources."),
-                    delete_after=30,
-                )
-        except Exception:
-            pass
+            from db import repository as repo
+            settings = await repo.get_guild_settings(manager.guild_id)
+            if settings["twentyfourseven"]:
+                log.info(f"Guild {manager.guild_id} idle but 24/7 is on — staying connected.")
+                return
 
-        await manager.disconnect()
-        self._tasks.pop(manager.guild_id, None)
+            vc = manager.voice_client
+            if not vc or not vc.is_connected():
+                return
+
+            # Double-check it's actually still idle (nothing started in the meantime)
+            if vc.is_playing() or vc.is_paused():
+                return
+
+            log.info(f"Guild {manager.guild_id} idle for {timeout}s — disconnecting.")
+            try:
+                if manager.text_channel:
+                    from utils.embeds import info_embed
+                    await manager.text_channel.send(
+                        embed=info_embed("👋  Leaving", f"No activity for {timeout//60} minutes — disconnecting to free up resources."),
+                        delete_after=30,
+                    )
+            except Exception:
+                pass
+
+            await manager.disconnect()
+        finally:
+            # Always release our slot when the countdown finishes — whether
+            # it disconnected, bailed out early, or hit an error — so a
+            # finished task doesn't linger in _tasks until overwritten.
+            self._tasks.pop(manager.guild_id, None)
 
     def cancel_all(self):
         for task in self._tasks.values():

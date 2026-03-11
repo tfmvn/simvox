@@ -58,8 +58,13 @@ class Music(commands.Cog):
         manager = self.get_manager(interaction.guild_id)
         manager.voice_client = vc
 
-        settings = await repo.get_guild_settings(interaction.guild_id)
-        manager.set_quality(settings["quality"])
+        # Quality is pushed into the manager directly by the Settings cog
+        # whenever /quality changes it, so we only need to hit the DB the
+        # first time this manager is created — not on every /play call.
+        if not manager.settings_loaded:
+            settings = await repo.get_guild_settings(interaction.guild_id)
+            manager.set_quality(settings["quality"])
+            manager.settings_loaded = True
 
         self.idle_tracker.notify_activity(interaction.guild_id)
         return manager
@@ -445,7 +450,11 @@ class Music(commands.Cog):
         await interaction.response.defer()
         try:
             tracks = await resolve(query)
-            if len(tracks) == 1:
+            # Only widen the search for plain text queries. URL sources
+            # (YouTube/SoundCloud) already resolved to their one canonical
+            # track above, so re-running yt-dlp on the same URL here was
+            # just refetching it a second time for nothing.
+            if len(tracks) == 1 and detect_source(query) == SourceType.SEARCH:
                 from core.scraper import search_top_tracks
                 tracks = await asyncio.to_thread(search_top_tracks, query, 10)
         except Exception as e:

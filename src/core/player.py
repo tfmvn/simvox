@@ -43,6 +43,11 @@ class GuildMusicManager:
         self._position_start: float = 0.0
         self._seek_offset:    int   = 0
 
+        # Set once by Music.ensure_voice() after the first DB read of
+        # guild settings; later quality changes are pushed in directly by
+        # the Settings cog, so this avoids a repo query on every /play.
+        self.settings_loaded = False
+
         self.skip_votes: set[int] = set()
 
         self.np_message: Optional[discord.Message] = None
@@ -72,6 +77,9 @@ class GuildMusicManager:
         Seconds until the track at `index` (0-based, within self.queue)
         starts playing, accounting for remaining time on the current track
         and full duration of everything ahead of it in queue.
+        Fine for one-off lookups (e.g. a single /play add); for rendering
+        a whole page of the queue use etas_for_range() instead so the
+        queue isn't re-walked from scratch for every row.
         """
         eta = 0
         if self.current:
@@ -80,6 +88,23 @@ class GuildMusicManager:
         for t in self.queue[:index]:
             eta += t.get("duration", 0) or 0
         return eta
+
+    def etas_for_range(self, start: int, end: int) -> list[int]:
+        """
+        Batch ETA calculation for queue[start:end] in a single pass.
+        queue_embed() used to call eta_for_queue_index() once per visible
+        row, which re-summed the queue from index 0 every time — O(n) per
+        row, O(n * page_size) per render. This walks the queue once.
+        """
+        running = 0
+        if self.current:
+            running = max(0, (self.current.get("duration", 0) or 0) - self.position)
+        etas: list[int] = []
+        for i, t in enumerate(self.queue[:end]):
+            if i >= start:
+                etas.append(running)
+            running += t.get("duration", 0) or 0
+        return etas
 
     # ── Playback ─────────────────────────────────────────────────────────────
 
@@ -157,6 +182,25 @@ class GuildMusicManager:
         await self._start_stream(next_track)
         await self._persist_state()
 
+    def _fire_and_forget(self, coro):
+        """
+        Schedule a coroutine onto the bot loop from sync callbacks (FFmpeg's
+        `after=`) or other non-async contexts. Plain run_coroutine_threadsafe
+        calls were dropping the returned Future on the floor, which silently
+        swallows any exception raised inside the coroutine.
+        """
+        fut = asyncio.run_coroutine_threadsafe(coro, self.bot.loop)
+        fut.add_done_callback(self._log_future_exception)
+
+    @staticmethod
+    def _log_future_exception(fut):
+        try:
+            fut.result()
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            log.error(f"Background task failed: {e}")
+
     async def _start_stream(self, track: dict, seek: int = 0):
         """Build FFmpeg source and start playing."""
         self._seek_offset = seek
@@ -179,7 +223,7 @@ class GuildMusicManager:
         def _after(error):
             if error:
                 log.error(f"Player error [{self.guild_id}]: {error}")
-            asyncio.run_coroutine_threadsafe(self.play_next(), self.bot.loop)
+            self._fire_and_forget(self.play_next())
 
         if self.voice_client.is_playing():
             self.voice_client.stop()
@@ -187,7 +231,7 @@ class GuildMusicManager:
         self.voice_client.play(source, after=_after)
 
         if self.text_channel:
-            asyncio.run_coroutine_threadsafe(self._update_np_message(), self.bot.loop)
+            self._fire_and_forget(self._update_np_message())
 
         self._start_progress_loop()
         await self._start_sb_watcher(track, seek)

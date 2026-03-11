@@ -93,11 +93,13 @@ def queue_embed(manager, page: int = 0) -> discord.Embed:
         return e
 
     if chunk:
+        # One pass over the queue instead of one eta_for_queue_index() call
+        # per row (each of which previously re-walked the queue from 0).
+        etas = manager.etas_for_range(start, end)
         lines = []
-        for i, t in enumerate(chunk, start=start + 1):
+        for i, t, eta in zip(range(start + 1, end + 1), chunk, etas):
             dur_str = _fmt_time(t.get("duration", 0))
-            eta_str = _fmt_time(manager.eta_for_queue_index(i - 1))
-            lines.append(f"`{i:02}.` **{t['title']}** `{dur_str}` — plays in `{eta_str}`")
+            lines.append(f"`{i:02}.` **{t['title']}** `{dur_str}` — plays in `{_fmt_time(eta)}`")
         e.add_field(name=f"Up Next  [{start+1}–{min(end,total)} of {total}]",
                     value="\n".join(lines), inline=False)
     else:
