@@ -12,8 +12,17 @@ from db import repository as repo
 
 
 async def is_dj(interaction: discord.Interaction) -> bool:
+    """
+    Check whether the user behind this interaction is allowed to do
+    DJ-only stuff (skip, clear, shuffle, volume, filters...).
+
+    Returns True if the DM case applies (no guild), the user is a mod
+    (Manage Server), the DJ role isn't configured at all, they actually
+    have the DJ role, or they're the only human currently in the voice
+    channel. Otherwise False.
+    """
     if not interaction.guild:
-        return True
+        return True  # DMs have no DJ concept, just let it through
 
     member = interaction.user
     if isinstance(member, discord.Member) and member.guild_permissions.manage_guild:
@@ -29,7 +38,8 @@ async def is_dj(interaction: discord.Interaction) -> bool:
         if any(r.id == dj_role_id for r in member.roles):
             return True
 
-        # Solo-in-VC exemption
+        # Solo-in-VC exemption — if you're by yourself with the bot there's
+        # no one to annoy, so don't make people ask a mod to skip their own song
         if member.voice and member.voice.channel:
             humans = [m for m in member.voice.channel.members if not m.bot]
             if len(humans) <= 1:
@@ -40,8 +50,11 @@ async def is_dj(interaction: discord.Interaction) -> bool:
 
 async def require_dj(interaction: discord.Interaction) -> bool:
     """
-    Checks DJ permission; if denied, sends an ephemeral error and returns False.
-    Callers should `if not await require_dj(interaction): return`.
+    Same check as is_dj(), but also handles the response for you.
+
+    Sends an ephemeral "you need the DJ role" error and returns False if
+    the check fails, otherwise just returns True and does nothing else.
+    Callers should do `if not await require_dj(interaction): return`.
     """
     if await is_dj(interaction):
         return True

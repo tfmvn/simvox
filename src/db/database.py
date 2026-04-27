@@ -61,8 +61,12 @@ CREATE INDEX IF NOT EXISTS idx_playlists_guild_owner ON playlists(guild_id, owne
 """
 
 
-async def init_db():
-    """Create data dir + tables if they don't exist. Call once on startup."""
+async def init_db() -> None:
+    """
+    Create the data dir + tables if they don't already exist.
+    Call this once on startup, before anything touches the db.
+    Safe to call on every boot since it's all CREATE TABLE IF NOT EXISTS.
+    """
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(_SCHEMA)
@@ -70,6 +74,12 @@ async def init_db():
     log.info(f"Database ready at {DB_PATH}")
 
 
-def get_connection():
-    """Returns a fresh aiosqlite connection. Caller must use `async with`."""
+def get_connection() -> aiosqlite.Connection:
+    """
+    Returns a brand new aiosqlite connection — not a shared/pooled one.
+    Every call opens its own connection, so always use it as
+    `async with get_connection() as db:` and don't hang onto it.
+    This keeps things simple and avoids cross-coroutine locking issues,
+    at the cost of a connect/close per query — fine for a bot this size.
+    """
     return aiosqlite.connect(DB_PATH)
