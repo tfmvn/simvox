@@ -1,47 +1,77 @@
+"""
+core/scraper.py
+yt-dlp wrapper — search, direct URL, related tracks.
+"""
 import yt_dlp
+import logging
 
-SEARCH_CACHE = {}
+log = logging.getLogger("simvox.scraper")
 
-ytdl_format_options = {
-    'format': 'bestaudio/best',
-    'noplaylist': True,
-    'nocheckcertificate': True,
-    'quiet': True,
-    'no_warnings': True,
-    'default_search': 'auto',
-    'source_address': '0.0.0.0',
-    'skip_download': True,
+_YTDL_OPTS = {
+    "format": "bestaudio/best",
+    "noplaylist": True,
+    "nocheckcertificate": True,
+    "quiet": True,
+    "no_warnings": True,
+    "default_search": "auto",
+    "source_address": "0.0.0.0",
+    "skip_download": True,
 }
 
-ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
+_ytdl = yt_dlp.YoutubeDL(_YTDL_OPTS)
 
-def search_top_tracks(query: str, max_results: int = 10) -> list:
-    """Scrapes the platform and returns a list of up to 10 track matches."""
-    search_query = query if query.startswith('http') else f"ytsearch{max_results}:{query}"
-    
 
-    info = ytdl.extract_info(search_query, download=False)
-    
+def _build_track(entry: dict) -> dict:
+    return {
+        "source":      entry.get("url", ""),
+        "title":       entry.get("title", "Unknown Title"),
+        "duration":    entry.get("duration", 0) or 0,
+        "thumbnail":   entry.get("thumbnail"),
+        "webpage_url": entry.get("webpage_url", entry.get("url", "")),
+        "uploader":    entry.get("uploader", "Unknown Artist"),
+        "view_count":  entry.get("view_count", 0),
+    }
+
+
+def search_top_tracks(query: str, max_results: int = 10) -> list[dict]:
+    """Return up to max_results tracks matching query."""
+    search_query = query if query.startswith("http") else f"ytsearch{max_results}:{query}"
+    try:
+        info = _ytdl.extract_info(search_query, download=False)
+    except Exception as e:
+        log.error(f"yt-dlp search error: {e}")
+        raise RuntimeError(f"Search failed: {e}") from e
+
     tracks = []
-    
-
-    if 'entries' in info:
-        for entry in info['entries']:
+    if "entries" in info:
+        for entry in info["entries"]:
             if entry:
-                tracks.append({
-                    'source': entry['url'],
-                    'title': entry['title'],
-                    'duration': entry.get('duration', 0)
-                })
+                tracks.append(_build_track(entry))
     else:
+        tracks.append(_build_track(info))
 
-        tracks.append({
-            'source': info['url'],
-            'title': info.get('title', 'Unknown Title'),
-            'duration': info.get('duration', 0)
-        })
-        
     if not tracks:
-        raise Exception("No results found for your query.")
-        
+        raise RuntimeError("No results found.")
     return tracks
+
+
+def fetch_by_url(url: str) -> dict:
+    """Fetch a single track directly by URL."""
+    try:
+        info = _ytdl.extract_info(url, download=False)
+        entry = info["entries"][0] if "entries" in info else info
+        return _build_track(entry)
+    except Exception as e:
+        log.error(f"yt-dlp fetch error: {e}")
+        raise RuntimeError(f"Could not load URL: {e}") from e
+
+
+def search_related(title: str, uploader: str, max_results: int = 5) -> list[dict]:
+    """Find loosely related tracks for autoplay."""
+    clean = title.split("(")[0].split("[")[0].split("-")[0].strip()
+    query = f"{uploader} {clean}"
+    try:
+        return search_top_tracks(query, max_results)
+    except Exception:
+        return []
+
