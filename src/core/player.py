@@ -1,6 +1,5 @@
 import discord
 import asyncio
-from core.scraper import search_audio
 
 class GuildMusicManager:
     def __init__(self, bot, guild_id):
@@ -15,6 +14,7 @@ class GuildMusicManager:
         if len(self.queue) == 0:
             self.current = None
             return
+
         self.current = self.queue.pop(0)
         
         ffmpeg_options = {
@@ -24,17 +24,14 @@ class GuildMusicManager:
         
         audio_source = discord.FFmpegPCMAudio(self.current['source'], **ffmpeg_options)
         
-
         def after_playing(error):
             if error:
                 print(f"Player error in guild {self.guild_id}: {error}")
-
             self.bot.loop.call_soon_threadsafe(
                 asyncio.create_task, self.play_next()
             )
 
         self.voice_client.play(audio_source, after=after_playing)
-
 
         if interaction and not interaction.response.is_done():
             await interaction.followup.send(f"🎶 Now playing: **{self.current['title']}**")
