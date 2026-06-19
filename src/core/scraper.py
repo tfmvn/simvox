@@ -1,32 +1,48 @@
 import yt_dlp
 
 
+SEARCH_CACHE = {}
+
 ytdl_format_options = {
     'format': 'bestaudio/best',
-    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
-    'restrictfilenames': True,
     'noplaylist': True,
     'nocheckcertificate': True,
-    'ignoreerrors': False,
-    'logtostderr': False,
     'quiet': True,
     'no_warnings': True,
     'default_search': 'auto',
-    'source_address': '0.0.0.0'
+    'source_address': '0.0.0.0',
+    
+
+    'extract_flat': 'discard_in_playlist',
+    'skip_download': True,
+    'youtube_include_dash_manifest': False,
 }
 
 ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
 
-def search_audio(query):
-    """Scrapes the search query or URL for a direct audio stream."""
+def search_audio(query: str) -> dict:
+    """Scrapes the target platform for a streamable audio URL. Uses cache if available."""
+
+    cleaned_query = query.strip().lower()
+    if cleaned_query in SEARCH_CACHE:
+        print(f"⚡ Cache Hit for query: '{query}'")
+        return SEARCH_CACHE[cleaned_query]
 
     search_query = query if query.startswith('http') else f"ytsearch:{query}"
     
 
     info = ytdl.extract_info(search_query, download=False)
     
-
     if 'entries' in info:
+        if not info['entries']:
+            raise Exception("No search results found.")
         info = info['entries'][0]
         
-    return {'source': info['url'], 'title': info['title']}
+    result = {
+        'source': info['url'], 
+        'title': info['title']
+    }
+    
+
+    SEARCH_CACHE[cleaned_query] = result
+    return result
