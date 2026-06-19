@@ -1,6 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+import asyncio
 from core.scraper import search_audio
 from core.player import GuildMusicManager
 
@@ -10,13 +11,11 @@ class Music(commands.Cog):
         self.managers = {}
 
     def get_manager(self, guild_id: int) -> GuildMusicManager:
-        """Helper to get or create a server's music manager."""
         if guild_id not in self.managers:
             self.managers[guild_id] = GuildMusicManager(self.bot, guild_id)
         return self.managers[guild_id]
 
     async def ensure_voice(self, interaction: discord.Interaction):
-        """Helper to check voice states and connect the bot."""
         if not interaction.user.voice:
             await interaction.response.send_message("❌ You need to be in a voice channel first!", ephemeral=True)
             return None
@@ -33,8 +32,9 @@ class Music(commands.Cog):
         manager.voice_client = voice_client
         return manager
 
-    @app_commands.command(name="play", description="Play or queue a song")
+    @app_commands.command(name="play", description="Play or queue a track instantly")
     async def play(self, interaction: discord.Interaction, query: str):
+
         await interaction.response.defer()
         
         manager = await self.ensure_voice(interaction)
@@ -43,7 +43,8 @@ class Music(commands.Cog):
 
         try:
 
-            track = search_audio(query)
+            track = await asyncio.to_thread(search_audio, query)
+            
             manager.add_to_queue(track)
 
             if not manager.voice_client.is_playing() and not manager.voice_client.is_paused():
@@ -52,7 +53,7 @@ class Music(commands.Cog):
             else:
                 await interaction.followup.send(f"⏳ Added to queue: **{track['title']}** (Position: {len(manager.queue)})")
         except Exception as e:
-            await interaction.followup.send(f"❌ Scraping error: {e}")
+            await interaction.followup.send(f"❌ Playback/Scraping error: {e}")
 
     @app_commands.command(name="pause", description="Pause the currently playing track")
     async def pause(self, interaction: discord.Interaction):
