@@ -11,19 +11,16 @@ ytdl_format_options = {
     'no_warnings': True,
     'default_search': 'auto',
     'source_address': '0.0.0.0',
-    
-
-    'extract_flat': 'discard_in_playlist',
     'skip_download': True,
-    'youtube_include_dash_manifest': False,
 }
 
 ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
 
 def search_audio(query: str) -> dict:
     """Scrapes the target platform for a streamable audio URL. Uses cache if available."""
-
     cleaned_query = query.strip().lower()
+    
+
     if cleaned_query in SEARCH_CACHE:
         print(f"⚡ Cache Hit for query: '{query}'")
         return SEARCH_CACHE[cleaned_query]
@@ -33,14 +30,20 @@ def search_audio(query: str) -> dict:
 
     info = ytdl.extract_info(search_query, download=False)
     
+
     if 'entries' in info:
         if not info['entries']:
             raise Exception("No search results found.")
         info = info['entries'][0]
         
+
+    stream_url = info.get('url')
+    if not stream_url:
+        raise Exception("Could not extract raw audio stream URL.")
+        
     result = {
-        'source': info['url'], 
-        'title': info['title']
+        'source': stream_url, 
+        'title': info.get('title', 'Unknown Title')
     }
     
 
