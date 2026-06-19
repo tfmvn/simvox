@@ -1,6 +1,5 @@
 import yt_dlp
 
-
 SEARCH_CACHE = {}
 
 ytdl_format_options = {
@@ -16,36 +15,33 @@ ytdl_format_options = {
 
 ytdl = yt_dlp.YoutubeDL(ytdl_format_options)
 
-def search_audio(query: str) -> dict:
-    """Scrapes the target platform for a streamable audio URL. Uses cache if available."""
-    cleaned_query = query.strip().lower()
-    
-
-    if cleaned_query in SEARCH_CACHE:
-        print(f"⚡ Cache Hit for query: '{query}'")
-        return SEARCH_CACHE[cleaned_query]
-
-    search_query = query if query.startswith('http') else f"ytsearch:{query}"
+def search_top_tracks(query: str, max_results: int = 10) -> list:
+    """Scrapes the platform and returns a list of up to 10 track matches."""
+    search_query = query if query.startswith('http') else f"ytsearch{max_results}:{query}"
     
 
     info = ytdl.extract_info(search_query, download=False)
     
-
-    if 'entries' in info:
-        if not info['entries']:
-            raise Exception("No search results found.")
-        info = info['entries'][0]
-        
-
-    stream_url = info.get('url')
-    if not stream_url:
-        raise Exception("Could not extract raw audio stream URL.")
-        
-    result = {
-        'source': stream_url, 
-        'title': info.get('title', 'Unknown Title')
-    }
+    tracks = []
     
 
-    SEARCH_CACHE[cleaned_query] = result
-    return result
+    if 'entries' in info:
+        for entry in info['entries']:
+            if entry:
+                tracks.append({
+                    'source': entry['url'],
+                    'title': entry['title'],
+                    'duration': entry.get('duration', 0)
+                })
+    else:
+
+        tracks.append({
+            'source': info['url'],
+            'title': info.get('title', 'Unknown Title'),
+            'duration': info.get('duration', 0)
+        })
+        
+    if not tracks:
+        raise Exception("No results found for your query.")
+        
+    return tracks
