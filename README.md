@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/tfmvn/simvox/releases"><img alt="Version" src="https://img.shields.io/badge/version-1.0.0-E8132A?style=flat-square"></a>
+  <img alt="Status" src="https://img.shields.io/badge/status-stable-brightgreen?style=flat-square">
   <img alt="Python" src="https://img.shields.io/badge/python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white">
   <img alt="discord.py" src="https://img.shields.io/badge/discord.py-2.7-5865F2?style=flat-square&logo=discord&logoColor=white">
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-E8132A?style=flat-square"></a>
@@ -57,6 +58,7 @@
 - [Roadmap](#roadmap)
 - [FAQ](#faq)
 - [License](#license)
+- [Changelog](#changelog)
 - [Support](#support)
 - [Credits](#credits)
 
@@ -168,6 +170,8 @@ simvox/
 | **Internet connection** | Required for audio streaming, search, lyrics, and SponsorBlock |
 
 > **Note:** FFmpeg is what powers audio playback. On Debian/Ubuntu install it with `sudo apt install ffmpeg`; on macOS with `brew install ffmpeg`; on Windows download a build and add it to your `PATH`.
+
+> **Spotify links:** playing Spotify tracks/albums/playlists requires the optional `spotifyscraper` package (`pip install spotifyscraper`), which isn't in `requirements.txt` by default. Everything else works without it — a Spotify link just fails with a clear error until it's installed.
 
 ---
 
@@ -395,6 +399,7 @@ Simvox intentionally keeps its dependency surface small.
 | [**aiohttp**](https://github.com/aio-libs/aiohttp) | Async HTTP for external API calls (lyrics, SponsorBlock). |
 | [**python-dotenv**](https://github.com/theskumar/python-dotenv) | Loads configuration from `.env`. |
 | [**PyNaCl**](https://github.com/pyca/pynacl) | Voice encryption support for discord.py. |
+| [**spotifyscraper**](https://pypi.org/project/spotifyscraper/) *(optional)* | Resolves Spotify track/album/playlist links. Only needed if you want Spotify support — not installed by `requirements.txt`. |
 
 See [`requirements.txt`](requirements.txt) for pinned versions.
 
@@ -476,6 +481,15 @@ git push origin feature/my-new-feature
 
 ## Roadmap
 
+Everything below the line shipped in 1.0.0. Above the line is what's being considered for after it — no promises on timing.
+
+- [ ] Unit & integration tests
+- [ ] CI/CD pipeline
+- [ ] Docker support
+- [ ] Plugin API for custom cogs
+
+---
+
 - [x] Queue system with ETAs
 - [x] Playlists (per-user, per-guild)
 - [x] Lyrics with pagination
@@ -486,10 +500,6 @@ git push origin feature/my-new-feature
 - [x] Per-guild statistics
 - [x] DJ role & permission model
 - [x] 24/7 mode
-- [ ] Unit & integration tests
-- [ ] CI/CD pipeline
-- [ ] Docker support
-- [ ] Plugin API for custom cogs
 
 > Have an idea? Open a [discussion](https://github.com/tfmvn/simvox/discussions) or an [issue](https://github.com/tfmvn/simvox/issues).
 
@@ -506,7 +516,7 @@ No. Simvox uses SQLite, which stores everything in a single file at `data/simvox
 <details>
 <summary><strong>Does Simvox support Spotify?</strong></summary>
 
-Simvox resolves tracks via `yt-dlp`, so it plays YouTube and SoundCloud sources. Spotify links are not natively supported at this time.
+Yes. Paste a Spotify track, album, or playlist link and Simvox looks up the metadata (via `spotifyscraper`) and finds a matching YouTube source to actually play. It needs `spotifyscraper` installed — see [Requirements](#requirements) — since it isn't a hard dependency in `requirements.txt`.
 </details>
 
 <details>
@@ -564,6 +574,12 @@ SOFTWARE.
 ```
 
 See the [LICENSE](LICENSE) file for details.
+
+---
+
+## Changelog
+
+Simvox is at **v1.0.0** — the first stable release. See [CHANGELOG.md](CHANGELOG.md) for the full release notes and everything that shipped to get here.
 
 ---
 
