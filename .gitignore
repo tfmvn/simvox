@@ -2,3 +2,4 @@
 /pm/
 /.pm/
 .src.py
+.env
