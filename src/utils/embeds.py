@@ -21,7 +21,7 @@ def _base(color: int = RED) -> discord.Embed:
     return e
 
 
-def now_playing(track: dict, position: int = 0, requester: Optional[discord.Member] = None) -> discord.Embed:
+def now_playing(track: dict, position: int = 0, requester: Optional[discord.Member] = None, manager=None) -> discord.Embed:
     dur   = track.get("duration", 0) or 0
     pos   = min(position, dur)
     pct   = (pos / dur) if dur else 0
@@ -35,10 +35,37 @@ def now_playing(track: dict, position: int = 0, requester: Optional[discord.Memb
     e.add_field(name="", value=f"`{elapsed}` {bar} `{total}`", inline=False)
     e.add_field(name="🎤 Artist",    value=track.get("uploader", "Unknown"),   inline=True)
     e.add_field(name="⏱ Duration",  value=total,                               inline=True)
+
+    if track.get("view_count"):
+        e.add_field(name="👁 Views", value=f"{track['view_count']:,}", inline=True)
+    if track.get("like_count"):
+        e.add_field(name="👍 Likes", value=f"{track['like_count']:,}", inline=True)
+    if track.get("upload_date"):
+        e.add_field(name="📅 Uploaded", value=_fmt_upload_date(track["upload_date"]), inline=True)
+
     if requester:
-        e.add_field(name="👤 Requested by", value=requester.mention,           inline=True)
+        e.add_field(name="👤 Requested by", value=requester.mention, inline=True)
+    elif track.get("requested_by_name"):
+        e.add_field(name="👤 Requested by", value=track["requested_by_name"], inline=True)
+
+    if manager is not None:
+        loop_str   = {"off": "Off", "track": "🔂 Track", "queue": "🔁 Queue"}.get(manager.loop_mode, "Off")
+        filter_str = "Off" if manager.active_filter == "none" else manager.active_filter.title()
+        e.add_field(name="🔁 Loop",   value=loop_str,                  inline=True)
+        e.add_field(name="🎛 Filter", value=filter_str,                inline=True)
+        e.add_field(name="🔊 Volume", value=f"{manager.volume}%",      inline=True)
+
     if track.get("thumbnail"):
         e.set_thumbnail(url=track["thumbnail"])
+    return e
+
+
+def autoplay_embed(previous_track: dict, recommendations: list) -> discord.Embed:
+    e = _base(RED)
+    e.title = "🤖  Autoplay"
+    e.description = f"Because you listened to **{previous_track['title']}**:"
+    lines = [f"`{i}.` {t['title']}" for i, t in enumerate(recommendations, 1)]
+    e.add_field(name="Queued up", value="\n".join(lines) or "Nothing found.", inline=False)
     return e
 
 
@@ -55,9 +82,10 @@ def queue_embed(manager, page: int = 0) -> discord.Embed:
 
     if manager.current:
         dur_str = _fmt_time(manager.current.get("duration", 0))
+        remaining = max(0, (manager.current.get("duration", 0) or 0) - manager.position)
         e.add_field(
             name="▶ Now Playing",
-            value=f"[{manager.current['title']}]({manager.current.get('webpage_url','')}) `{dur_str}`",
+            value=f"[{manager.current['title']}]({manager.current.get('webpage_url','')}) `{dur_str}` • ends in `{_fmt_time(remaining)}`",
             inline=False,
         )
     else:
@@ -68,7 +96,8 @@ def queue_embed(manager, page: int = 0) -> discord.Embed:
         lines = []
         for i, t in enumerate(chunk, start=start + 1):
             dur_str = _fmt_time(t.get("duration", 0))
-            lines.append(f"`{i:02}.` **{t['title']}** `{dur_str}`")
+            eta_str = _fmt_time(manager.eta_for_queue_index(i - 1))
+            lines.append(f"`{i:02}.` **{t['title']}** `{dur_str}` — plays in `{eta_str}`")
         e.add_field(name=f"Up Next  [{start+1}–{min(end,total)} of {total}]",
                     value="\n".join(lines), inline=False)
     else:
@@ -94,13 +123,15 @@ def search_results(query: str, tracks: list) -> discord.Embed:
     return e
 
 
-def track_added(track: dict, position: int) -> discord.Embed:
+def track_added(track: dict, position: int, eta_seconds: Optional[int] = None) -> discord.Embed:
     e = _base(RED)
     e.title = "➕  Added to Queue"
     e.description = f"[{track['title']}]({track.get('webpage_url','')})"
     e.add_field(name="Position",  value=f"`#{position}`",                inline=True)
     e.add_field(name="Duration",  value=_fmt_time(track.get("duration",0)), inline=True)
     e.add_field(name="Artist",    value=track.get("uploader","?"),       inline=True)
+    if eta_seconds is not None:
+        e.add_field(name="Plays in", value=f"`{_fmt_time(eta_seconds)}`", inline=True)
     if track.get("thumbnail"):
         e.set_thumbnail(url=track["thumbnail"])
     return e
@@ -169,6 +200,81 @@ def volume_embed(vol: int) -> discord.Embed:
     return e
 
 
+def quality_embed(active: str) -> discord.Embed:
+    e = _base(RED)
+    e.title = "🎚  Audio Quality"
+    tiers = {
+        "low":    "Lowest bitrate — best for slow/limited VPS bandwidth.",
+        "medium": "≤96kbps — balanced.",
+        "high":   "≤192kbps — recommended default.",
+        "source": "Whatever the source provides, uncapped.",
+    }
+    lines = []
+    for key, desc in tiers.items():
+        mark = "▶" if key == active else "·"
+        lines.append(f"`{mark}` **{key.title()}** — {desc}")
+    e.description = "\n".join(lines)
+    return e
+
+
+def settings_embed(settings: dict, dj_role: Optional[discord.Role] = None) -> discord.Embed:
+    e = _base(RED)
+    e.title = "⚙️  Server Settings"
+    e.add_field(name="DJ Role", value=dj_role.mention if dj_role else "Not set (anyone can control)", inline=False)
+    e.add_field(name="24/7 Mode", value="🟢 On" if settings["twentyfourseven"] else "🔴 Off", inline=True)
+    e.add_field(name="SponsorBlock", value="🟢 On" if settings["sponsorblock"] else "🔴 Off", inline=True)
+    e.add_field(name="Idle Timeout", value=f"{settings['idle_timeout']//60} min", inline=True)
+    e.add_field(name="Quality", value=settings["quality"].title(), inline=True)
+    return e
+
+
+def stats_embed(guild_name: str, stats: dict) -> discord.Embed:
+    e = _base(RED)
+    e.title = f"📊  Music Stats — {guild_name}"
+    hours = stats["total_seconds"] / 3600
+    e.add_field(name="Tracks Played", value=f"{stats['tracks_played']:,}", inline=True)
+    e.add_field(name="Hours Played",  value=f"{hours:,.1f}", inline=True)
+    e.add_field(name="Top Artist",    value=stats["top_artist"] or "—", inline=True)
+    e.add_field(name="Top Song",      value=stats["top_song"] or "—", inline=True)
+    if stats["top5"]:
+        lines = [f"`{i}.` {t['title'][:50]} — {t['plays']}x" for i, t in enumerate(stats["top5"], 1)]
+        e.add_field(name="Most Played", value="\n".join(lines), inline=False)
+    return e
+
+
+def playlist_embed(name: str, tracks: list) -> discord.Embed:
+    e = _base(RED)
+    e.title = f"🎵  Playlist: {name}"
+    if not tracks:
+        e.description = "Empty playlist."
+        return e
+    total_dur = sum(t.get("duration", 0) or 0 for t in tracks)
+    lines = [f"`{i:02}.` {t['title'][:55]} `{_fmt_time(t.get('duration',0))}`" for i, t in enumerate(tracks[:15], 1)]
+    if len(tracks) > 15:
+        lines.append(f"...and {len(tracks)-15} more.")
+    e.description = "\n".join(lines)
+    e.set_footer(text=f"SIMVOX  •  {len(tracks)} tracks  •  {_fmt_time(total_dur)} total")
+    return e
+
+
+def playlist_list_embed(names: list) -> discord.Embed:
+    e = _base(RED)
+    e.title = "📂  Your Playlists"
+    if not names:
+        e.description = "No playlists yet. Use `/playlist create` to make one."
+        return e
+    e.description = "\n".join(f"• {n}" for n in names)
+    return e
+
+
+def lyrics_embed(title: str, lyrics: str, page: int, total_pages: int) -> discord.Embed:
+    e = _base(RED)
+    e.title = f"🎤  {title[:80]}"
+    e.description = lyrics
+    e.set_footer(text=f"SIMVOX  •  Page {page+1}/{total_pages}")
+    return e
+
+
 # ── Helpers ─────────────────────────────────────────────────────────────────
 def _fmt_time(seconds: int) -> str:
     if not seconds:
@@ -177,6 +283,13 @@ def _fmt_time(seconds: int) -> str:
     h, rem = divmod(seconds, 3600)
     m, s   = divmod(rem, 60)
     return f"{h}:{m:02}:{s:02}" if h else f"{m}:{s:02}"
+
+
+def _fmt_upload_date(yyyymmdd: str) -> str:
+    try:
+        return f"{yyyymmdd[:4]}-{yyyymmdd[4:6]}-{yyyymmdd[6:8]}"
+    except Exception:
+        return yyyymmdd
 
 
 def _progress_bar(pct: float, length: int = 18) -> str:
@@ -188,4 +301,3 @@ def _progress_bar(pct: float, length: int = 18) -> str:
 def _volume_bar(vol: int, length: int = 16) -> str:
     filled = int((min(vol, 200) / 200) * length)
     return "▮" * filled + "▯" * (length - filled)
-

@@ -37,6 +37,8 @@ class TrackSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         await interaction.response.defer()
         track = self.tracks[int(self.values[0])]
+        track["requested_by"] = interaction.user.id
+        track["requested_by_name"] = interaction.user.display_name
 
         manager = await self.cog.ensure_voice(interaction)
         if not manager:
@@ -51,14 +53,15 @@ class TrackSelect(discord.ui.Select):
             await manager.play_next()
             from utils.embeds import now_playing
             from ui.views import NowPlayingView
-            embed = now_playing(track, 0, interaction.user)
+            embed = now_playing(track, 0, interaction.user, manager=manager)
             view  = NowPlayingView(manager)
             msg   = await interaction.followup.send(embed=embed, view=view)
             manager.np_message   = msg
             manager.text_channel = interaction.channel
         else:
             from utils.embeds import track_added
-            await interaction.followup.send(embed=track_added(track, pos))
+            eta = manager.eta_for_queue_index(pos - 1)
+            await interaction.followup.send(embed=track_added(track, pos, eta_seconds=eta))
 
 
 class SearchView(discord.ui.View):
@@ -106,6 +109,9 @@ class NowPlayingView(discord.ui.View):
 
     @discord.ui.button(emoji="⏭", style=discord.ButtonStyle.secondary, row=0)
     async def skip_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        from core.permissions import require_dj
+        if not await require_dj(interaction):
+            return
         await interaction.response.defer()
         self.manager.skip()
         await interaction.followup.send("⏭ Skipped.", ephemeral=True, delete_after=5)
@@ -121,6 +127,9 @@ class NowPlayingView(discord.ui.View):
 
     @discord.ui.button(emoji="🔀", style=discord.ButtonStyle.secondary, row=0)
     async def shuffle_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        from core.permissions import require_dj
+        if not await require_dj(interaction):
+            return
         await interaction.response.defer()
         self.manager.shuffle()
         await interaction.followup.send("🔀 Queue shuffled.", ephemeral=True, delete_after=5)
@@ -135,6 +144,9 @@ class NowPlayingView(discord.ui.View):
 
     @discord.ui.button(label="Filter", emoji="🎛", style=discord.ButtonStyle.secondary, row=1)
     async def filter_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        from core.permissions import require_dj
+        if not await require_dj(interaction):
+            return
         view = FilterView(self.manager)
         from utils.embeds import filters_embed
         await interaction.response.send_message(
@@ -143,6 +155,9 @@ class NowPlayingView(discord.ui.View):
 
     @discord.ui.button(label="Vol –", emoji="🔉", style=discord.ButtonStyle.danger, row=1)
     async def vol_down(self, interaction: discord.Interaction, button: discord.ui.Button):
+        from core.permissions import require_dj
+        if not await require_dj(interaction):
+            return
         await interaction.response.defer()
         self.manager.set_volume(self.manager.volume - 10)
         from utils.embeds import volume_embed
@@ -150,6 +165,9 @@ class NowPlayingView(discord.ui.View):
 
     @discord.ui.button(label="Vol +", emoji="🔊", style=discord.ButtonStyle.success, row=1)
     async def vol_up(self, interaction: discord.Interaction, button: discord.ui.Button):
+        from core.permissions import require_dj
+        if not await require_dj(interaction):
+            return
         await interaction.response.defer()
         self.manager.set_volume(self.manager.volume + 10)
         from utils.embeds import volume_embed
@@ -191,12 +209,18 @@ class QueueView(discord.ui.View):
 
     @discord.ui.button(label="🔀 Shuffle", style=discord.ButtonStyle.primary)
     async def shuffle(self, interaction: discord.Interaction, button: discord.ui.Button):
+        from core.permissions import require_dj
+        if not await require_dj(interaction):
+            return
         self.manager.shuffle()
         from utils.embeds import queue_embed
         await interaction.response.edit_message(embed=queue_embed(self.manager, self.page), view=self)
 
     @discord.ui.button(label="🗑 Clear", style=discord.ButtonStyle.danger)
     async def clear(self, interaction: discord.Interaction, button: discord.ui.Button):
+        from core.permissions import require_dj
+        if not await require_dj(interaction):
+            return
         self.manager.clear_queue()
         from utils.embeds import queue_embed
         await interaction.response.edit_message(embed=queue_embed(self.manager, 0), view=self)
@@ -293,3 +317,57 @@ class VoteSkipView(discord.ui.View):
         else:
             await interaction.response.edit_message(view=self)
 
+
+# ── Lyrics Paginator ─────────────────────────────────────────────────────────
+
+class LyricsView(discord.ui.View):
+    def __init__(self, title: str, pages: list[str]):
+        super().__init__(timeout=120)
+        self.title = title
+        self.pages = pages
+        self.page  = 0
+        self._refresh_buttons()
+
+    def _refresh_buttons(self):
+        for item in self.children:
+            if getattr(item, "custom_id", None) == "lyr_prev":
+                item.disabled = self.page <= 0
+            if getattr(item, "custom_id", None) == "lyr_next":
+                item.disabled = self.page >= len(self.pages) - 1
+
+    @discord.ui.button(label="◀", style=discord.ButtonStyle.secondary, custom_id="lyr_prev")
+    async def prev_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.page = max(0, self.page - 1)
+        self._refresh_buttons()
+        from utils.embeds import lyrics_embed
+        embed = lyrics_embed(self.title, self.pages[self.page], self.page, len(self.pages))
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="▶", style=discord.ButtonStyle.secondary, custom_id="lyr_next")
+    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.page = min(len(self.pages) - 1, self.page + 1)
+        self._refresh_buttons()
+        from utils.embeds import lyrics_embed
+        embed = lyrics_embed(self.title, self.pages[self.page], self.page, len(self.pages))
+        await interaction.response.edit_message(embed=embed, view=self)
+
+
+# ── 24/7 Toggle Confirmation ──────────────────────────────────────────────────
+
+class ConfirmView(discord.ui.View):
+    """Generic yes/no confirmation. result is None until answered."""
+    def __init__(self, timeout: int = 30):
+        super().__init__(timeout=timeout)
+        self.result: bool | None = None
+
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.danger, emoji="✅")
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.result = True
+        self.stop()
+        await interaction.response.edit_message(view=None)
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary, emoji="❌")
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.result = False
+        self.stop()
+        await interaction.response.edit_message(view=None)
